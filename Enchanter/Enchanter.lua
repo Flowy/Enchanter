@@ -15,10 +15,18 @@ function EC.GetItems()
 	EC.DBChar.RecipeLinks = {}
 
 	CastSpellByName("Enchanting")
-	for i = 1, GetNumTradeSkills(), 1 do
-        local craftName, _, craftType, numAvailable =  GetTradeSkillInfo(i);
+	for i = 1, GetNumCrafts(), 1 do
+        local craftName, _, craftType, numAvailable =  GetCraftInfo(i);
 		if EC.RecipeTags["enGB"][craftName] ~= nil then 
-			EC.DBChar.RecipeLinks[craftName] = GetTradeSkillRecipeLink(i)
+			local matsNeeded
+			for r = 1, GetCraftNumReagents(i), 1 do
+				if (matsNeeded) then matsNeeded = matsNeeded .. ", "
+				else matsNeeded = craftName .. " - "
+				end
+				local reagentName, _, reagentCount = GetCraftReagentInfo(i, r)
+				matsNeeded = matsNeeded .. reagentCount .. "x" .. EC.ItemLink(reagentName)
+			end
+			EC.DBChar.RecipeLinks[craftName] = matsNeeded
 			EC.DBChar.RecipeList[craftName] = EC.RecipeTags["enGB"][craftName]
 		end
     end
@@ -27,6 +35,15 @@ function EC.GetItems()
 		for _, v in pairs(EC.RecipesWithNether) do
 			EC.DBChar.RecipeList[v] = nil
 		end
+	end
+end
+
+function EC.ItemLink(name)
+	if (EC.ItemIds[name]) then
+		local _, itemLink = GetItemInfo(EC.ItemIds[name])
+		return itemLink
+	else
+		return name
 	end
 end
 
@@ -67,10 +84,8 @@ function EC.Init()
 	if not EC.DBChar.LastUpdated then EC.DBChar.LastUpdated = -1 end
 
 	local currentVersion = GetAddOnMetadata("Enchanter", "Version")
+	EC.debug("Last Updated: " .. EC.DBChar.LastUpdated .. " current version: " .. currentVersion)
 	if currentVersion ~= EC.DBChar.LastUpdated then
-		if EC.DBChar.Debug == true then
-			print("Last Updated: " .. EC.DBChar.LastUpdated .. " current version: " .. currentVersion)
-		end
 		defaultVariables()
 		print("NOTICE: Enchanter has been updated. You must run /ec scan")
 	end
@@ -92,11 +107,11 @@ function EC.Init()
 		{{"config","setup","options"},"Settings",EC.Options.Open,1},
 		{"debug","Enables/Disabled debug messages",function()
 			if EC.DBChar.Debug== true then
+				EC.debug("Debug mode is now off")
 				EC.DBChar.Debug = false
-				print("Debug mode is now off")
 			else 
 				EC.DBChar.Debug = true
-				print("Debug mode is now on")
+				EC.debug("Debug mode is now on")
 			end
 		end},
 		{{"about", "usage"},"You need to first run /ec scan this will store your known recipes and will be parsing chat for them (only need to do it 1 time or if you learned new recipes) after run /ec start to start looking for requests"},
@@ -113,14 +128,38 @@ end
 -- Sends a msg with the enchanting links that enchanter is capable of doing
 function EC.SendMsg(name)
 		if EC.LfRecipeList[name] ~= nil then
-			-- Iterates over the matches requested enchants (that is capable of doing) adds them to the message
-			local msg = EC.DB.MsgPrefix
+			-- Iterates over the matches requested enchants (that is capable of doing)
+			local msg = nil
 			for k, _ in pairs(EC.LfRecipeList[name]) do 
-				msg = msg .. EC.DBChar.RecipeLinks[k]
+				EC.debug("Sending message to: " .. name .. " for request: " .. EC.DBChar.RecipeLinks[k])
+				local msgToSend = EC.DB.MsgPrefix .. EC.DBChar.RecipeLinks[k]
+				SendChatMessage(msgToSend, "WHISPER", nil, name)
 			end
-			SendChatMessage(msg, "WHISPER", nil, name)
 			EC.LfRecipeList[name] = nil -- Clearing it so it doesn't growing larger unnecessarily 
 		end
+end
+
+function EC.messageHasPrefix(msg) 
+	for _, v in pairs(EC.PrefixTags) do 
+		if string.find(msg:lower(), "%f[%w_]" .. v .. "%f[^%w_]") then -- Important so it doesn't match things like LFW
+			return true
+		end
+	end
+	return false
+end
+
+function EC.messageIsBlacklisted(msg, name)
+	for _, v in pairs (EC.BlackList) do 
+		if string.find(msg:lower(), "%f[%w_]" .. v .. "%f[^%w_]") then
+			EC.debug("Request: " .. msg .. " is being blacklisted due to tag: " .. v)
+			return true
+		end
+	end
+	return false
+end
+
+function EC.playerIsBlacklisted(name)
+	return CharacterNotesTable and CharacterNotesTable.NotesDB and CharacterNotesTable.NotesDB:GetRating(name) == -1
 end
 
 -- For a message it will attempt to filter the request based on any of the words in EC.PrefixTags
@@ -131,21 +170,7 @@ function EC.ParseMessage(msg, name)
 		return
 	end
 
-	local isRequestValid = false
-	for _, v in pairs(EC.PrefixTags) do 
-		if string.find(msg:lower(), "%f[%w_]" .. v .. "%f[^%w_]") then -- Important so it doesn't match things like LFW
-			isRequestValid = true
-		end
-	end
-
-	for _, v in pairs (EC.BlackList) do 
-		if string.find(msg:lower(), "%f[%w_]" .. v .. "%f[^%w_]") then
-			if EC.DBChar.Debug == true then
-				print("Request: " .. msg .. " is being blacklisted due to tag: " .. v)
-			end
-			isRequestValid = false
-		end
-	end
+	local isRequestValid = EC.messageHasPrefix(msg) and not EC.playerIsBlacklisted(name) and not EC.messageIsBlacklisted(msg, name)
 
 	if isRequestValid == false then return end
 	local shouldInvite = false
@@ -155,10 +180,8 @@ function EC.ParseMessage(msg, name)
 		for _, v2 in pairs(v) do
 		if string.find(msg:lower(), v2, 1, true) then
 			if not EC.LfRecipeList[name] then EC.LfRecipeList[name] = {} end
-			if EC.DBChar.Debug == true then
-				print("User should be invited for msg: " .. msg)
-				print("Due to tag: " .. v2)
-			end
+			EC.debug("User should be invited for msg: " .. msg)
+			EC.debug("Due to tag: " .. v2)
 			shouldInvite = true
 			EC.LfRecipeList[name][k] = v2
 			end 
@@ -168,9 +191,8 @@ function EC.ParseMessage(msg, name)
 	if shouldInvite == true then
 		-- This check is in case there is a bug and it wrongly matches we don't continue spamming invite to the same user every time they post
 		if EC.PlayerList[name] == nil then 
-			if EC.DBChar.Debug == true then
-				print("Inviting Player: " .. name .. " for request: " .. msg)
-			end
+			FlashClientIcon()
+			EC.debug("Inviting Player: " .. name .. " for request: " .. msg)
 			EC.PlayerList[name] = 1
 			if EC.DB.AutoInvite then
 				InviteUnit(name)
@@ -198,6 +220,11 @@ function EC.ParseMessage(msg, name)
 	end
 end
 
+function EC.debug(...)
+	if (EC.DBChar.Debug) then
+		print(...)
+	end
+end
 
 local function Event_CHAT_MSG_CHANNEL(msg,name,_3,_4,_5,_6,_7,channelID,channel,_10,_11,guid)
 	if not EC.Initalized then return end
@@ -207,6 +234,10 @@ local function Event_CHAT_MSG_CHANNEL(msg,name,_3,_4,_5,_6,_7,channelID,channel,
 	end
 	--]]
 	EC.ParseMessage(msg, name)
+end
+
+local function Event_CHAT_MSG_PARTY(msg, name)
+	--EC.ParseMessage(msg, name)
 end
 
 local function Event_ADDON_LOADED(arg1)
@@ -231,5 +262,7 @@ function EC.OnLoad()
 	EC.Tool.RegisterEvent("CHAT_MSG_GUILD",Event_CHAT_MSG_CHANNEL)
 	EC.Tool.RegisterEvent("CHAT_MSG_OFFICER",Event_CHAT_MSG_CHANNEL)
 	EC.Tool.RegisterEvent("TRADE_SKILL_SHOW",Event_TRADE_SKILL_SHOW)
+	EC.Tool.RegisterEvent("CHAT_MSG_PARTY",Event_CHAT_MSG_PARTY)
+	EC.Tool.RegisterEvent("CHAT_MSG_PARTY_LEADER",Event_CHAT_MSG_PARTY)
 end
 
