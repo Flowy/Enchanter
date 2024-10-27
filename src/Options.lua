@@ -40,10 +40,10 @@ function EC.OptionsInit ()
 		EC.OptionsUpdate()
 	end
 	local onRefresh = function(panelFrame)
-		--EC.OptionsBuilder.DoCancel()
+		EC.OptionsUpdate()
 	end
 	local onDefault = function(panelFrame)
-		--EC.OptionsBuilder.DoDefault()
+		EC.OptionsBuilder.DefaultRegisteredVariables()
 		EC.OptionsUpdate()
 	end
 	EC.OptionsBuilder.Init(onCommit, onRefresh, onDefault);
