@@ -90,7 +90,6 @@ function EC.Init()
 		print("NOTICE: Enchanter has been updated. You must run /ec scan")
 	end
 
-
 	EC.Tool.SlashCommand({"/ec", "/enchanter", "/e"},{
 		{"scan","MUST BE RAN PRIOR TO /ec start. Scans and stores your enchanting recipes to be used when filter for requests. NOTE: You need to rerun this when you learn new recipes",function()
 			DoScan()
@@ -104,7 +103,7 @@ function EC.Init()
 			EC.DBChar.Stop = false
 			print("Started...")
 		end},
-		{{"config","setup","options"},"Settings",EC.Options.Open,1},
+		{{"config","setup","options"},"Settings",EC.OptionsBuilder.Open,1},
 		{"debug","Enables/Disabled debug messages",function()
 			if EC.DBChar.Debug== true then
 				EC.debug("Debug mode is now off")

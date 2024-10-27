@@ -2,6 +2,7 @@ local TOCNAME,EC=...
 
 --Options
 -------------------------------------------------------------------------------------
+
 function EC.UpdateTags()
 	-- Undecided if I should keep this in or not
 	--[[ 
@@ -35,48 +36,44 @@ function EC.OptionsUpdate()
 end
 
 function EC.OptionsInit ()
-	EC.Options.Init(
-		function() -- ok button			
-			EC.Options.DoOk() 
-			EC.OptionsUpdate()	
-		end,
-		function() -- Chancel/init button
-			EC.Options.DoCancel() 
-		end, 
-		function() -- default button
-			EC.Options.DoDefault()
-			EC.OptionsUpdate()	
-		end
-		)
-	
-	EC.Options.SetScale(0.85)
+	local onCommit = function(panelFrame)
+		EC.OptionsUpdate()
+	end
+	local onRefresh = function(panelFrame)
+		--EC.OptionsBuilder.DoCancel()
+	end
+	local onDefault = function(panelFrame)
+		--EC.OptionsBuilder.DoDefault()
+		EC.OptionsUpdate()
+	end
+	EC.OptionsBuilder.Init(onCommit, onRefresh, onDefault);
+	EC.OptionsBuilder.SetScale(0.85)
 
 	-- Tags Tab
-	EC.Options.AddPanel("Enchanter",false,true)
-	
-	EC.Options.AddCategory("General Options")
-	EC.Options.Indent(10)
-	EC.Options.InLine()
-	EC.Options.AddCheckBox(EC.DB, "AutoInvite", true, "Auto Invite")
-	EC.Options.AddCheckBox(EC.DB, "NetherRecipes", false, "Disable Nether Recipes")
-	EC.Options.EndInLine()
-	EC.Options.Indent(-10)
+	EC.OptionsBuilder.AddNewCategoryPanel("Enchanter",false,true)
+	EC.OptionsBuilder.AddHeaderToCurrentPanel("General Options")
+	EC.OptionsBuilder.Indent(10)
 
-	EC.Options.AddCategory("Search Patterns")
-	EC.Options.Indent(10)
-	EC.Options.AddText('Enter your own unique search patterns here. You must use "," (comma) as the seperator with no space after it', 450+200)
-	EC.Options.AddSpace()
+	EC.OptionsBuilder.AddCheckBoxToCurrentPanel(EC.DB, "AutoInvite", true, "Auto Invite")
+	EC.OptionsBuilder.AddCheckBoxToCurrentPanel(EC.DB, "NetherRecipes", false, "Disable Nether Recipes")
 
-	-- Message String
-	EC.Options.AddEditBox(EC.DB, "MsgPrefix", EC.DB.MsgPrefix, "Message Prefix", 445, 200, false)
-	
-	-- Blacklist
-	EC.Options.AddEditBox(EC.DB.Custom, "BlackList", "", "BlackList", 445, 200, false)	
+	EC.OptionsBuilder.Indent(-10)
+	--
+	EC.OptionsBuilder.AddHeaderToCurrentPanel("Search Patterns")
+	EC.OptionsBuilder.Indent(10)
+	EC.OptionsBuilder.AddTextToCurrentPanel('Enter your own unique search patterns here. You must use "," (comma) as the seperator with no space after it', 450+200)
+	EC.OptionsBuilder.AddSpacerToPanel()
 
-	EC.Options.AddSpace()
-	-- Recipe Tags
+	---- Message String
+	EC.OptionsBuilder.AddEditBoxToCurrentPanel(EC.DB, "MsgPrefix", EC.DB.MsgPrefix, "Message Prefix", 445, 200, false)
+	--
+	---- Blacklist
+	EC.OptionsBuilder.AddEditBoxToCurrentPanel(EC.DB.Custom, "BlackList", "", "BlackList", 445, 200, false)
+	--
+	--EC.Options.AddSpace()
+	---- Recipe Tags
 	for k,v in pairs(EC.RecipeTags["enGB"]) do
 		local txt = EC.Tool.Combine(EC.RecipeTags["enGB"][k],",")
-		EC.Options.AddEditBox(EC.DB.Custom, k, txt, k, 445, 200, false)
+		EC.OptionsBuilder.AddEditBoxToCurrentPanel(EC.DB.Custom, k, txt, k, 445, 200, false)
 	end
 end

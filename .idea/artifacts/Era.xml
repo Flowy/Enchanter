@@ -1,5 +1,5 @@
 <component name="ArtifactManager">
-  <artifact name="Era">
+  <artifact build-on-make="true" name="Era">
     <output-path>W:/World of Warcraft/_classic_era_/Interface/Addons/Enchanter</output-path>
     <root id="root">
       <element id="dir-copy" path="$PROJECT_DIR$/src" />
